@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#7a1f1f">
+<title>Price List</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --maroon:#7a1f1f; --maroon-d:#5a1414; --gold:#f2b632; --gold-l:#fff4d6;
+  --bg:#f6f1ea; --card:#ffffff; --ink:#2a1d17; --muted:#8a7a70; --line:#eee3d6;
+  --green:#1d7a46; --chk:#FFFDF6; --chk2:#fff8e3;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:linear-gradient(135deg,var(--maroon),var(--maroon-d));color:#fff;padding:18px 16px 14px;position:relative;overflow:hidden;cursor:pointer}
+header::after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle,rgba(242,182,50,.35),transparent 70%);pointer-events:none}
+header h1{margin:0;font-size:20px;letter-spacing:.3px}
+header p{margin:4px 0 0;font-size:12.5px;opacity:.85}
+header .badge{display:inline-block;background:var(--gold);color:var(--maroon-d);font-weight:700;font-size:11px;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle}
+
+.toolbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--line)}
+.toolbar input[type=search]{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px;outline:none}
+.toolbar input[type=search]:focus{border-color:var(--gold)}
+.chip{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 11px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--maroon);color:#fff;border-color:var(--maroon)}
+.chip.icon{padding:8px 12px;font-size:16px;line-height:1}
+
+main{max-width:900px;margin:0 auto;padding:10px 10px 96px}
+.autoq{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:var(--ink);cursor:pointer;user-select:none}
+.autoq small{display:block;color:var(--muted);font-size:11.5px}
+.card{background:var(--card);border-radius:14px;box-shadow:0 2px 10px rgba(90,20,20,.07)}
+thead th:first-child{border-top-left-radius:14px}
+thead th:last-child{border-top-right-radius:14px}
+tfoot tr.total td:first-child{border-bottom-left-radius:14px}
+tfoot tr.total td:last-child{border-bottom-right-radius:14px}
+table{width:100%;border-collapse:collapse;table-layout:auto}
+thead th{background:#fbf6ef;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;padding:9px 6px;text-align:left;border-bottom:2px solid var(--line);position:sticky;top:var(--tb,57px);z-index:2}
+td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.c{text-align:center}
+.muted{color:var(--muted)}
+.sno{color:var(--muted);font-size:12px}
+.name{font-weight:600}
+.m-sub{display:none;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px}
+.m-sub i{font-style:normal;opacity:.75}
+.final{font-weight:700;color:var(--maroon)}
+.amt{font-weight:700;color:var(--green);min-width:64px}
+tr.sec td{background:linear-gradient(90deg,var(--gold-l),#fff);color:var(--maroon-d);font-weight:800;font-size:12.5px;letter-spacing:.6px;text-transform:uppercase;padding:9px 10px;border-left:4px solid var(--gold);height:34px}
+tr.item.checked td{background:var(--chk)}
+tr.item.hide, tr.sec.hide{display:none}
+
+input[type=checkbox]{width:19px;height:19px;accent-color:var(--maroon);cursor:pointer;margin:0;vertical-align:middle}
+input.qty{width:56px;padding:6px 6px;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:14px;background:#fff;outline:none;font-variant-numeric:tabular-nums}
+input.qty:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(242,182,50,.25)}
+input.qty::-webkit-outer-spin-button,input.qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input.qty{-moz-appearance:textfield}
+
+tr.total td{background:var(--maroon);color:#fff;font-weight:800;border:none;padding:12px 6px;font-size:14.5px}
+tr.total td.gold{color:var(--gold)}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--maroon-d);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -4px 14px rgba(0,0,0,.18)}
+.bar .stat{display:flex;flex-direction:column;line-height:1.15}
+.bar .stat b{font-size:16px}
+.bar .stat span{font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px}
+.bar .stat.amount b{color:var(--gold);font-size:18px}
+.bar .grow{flex:1}
+.btn{border:none;border-radius:10px;padding:10px 14px;font-weight:700;font-size:13.5px;cursor:pointer}
+.btn.gold{background:var(--gold);color:var(--maroon-d)}
+.btn.primary{background:var(--maroon);color:#fff}
+
+.modal{position:fixed;inset:0;background:rgba(30,10,10,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal.open{display:flex}
+.sheet{background:#fff;border-radius:16px;width:100%;max-width:360px;max-height:90vh;overflow:auto;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.sheet h3{margin:0 0 4px;color:var(--maroon)}
+.sheet p{margin:0 0 14px;color:var(--muted);font-size:13px}
+.opt{display:block;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;font-size:14px;color:var(--ink)}
+.opt b{display:block;color:var(--ink)}
+.opt small{color:var(--muted)}
+.opt:hover{border-color:var(--gold);background:var(--gold-l)}
+.opt.danger b{color:var(--maroon)}
+.sheet .cancel{width:100%;background:#f3ece4;color:var(--ink)}
+.row2{display:flex;gap:8px}
+.row2 .btn{flex:1}
+.fld{display:block;margin-bottom:12px}
+.fld span{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.fld input,.fld textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:14px;outline:none;resize:vertical}
+.fld input:focus,.fld textarea:focus{border-color:var(--gold)}
+.hint{background:#fbf6ef;border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5}
+.hint b{color:var(--ink)}
+.seg{display:flex;background:#f3ece4;border-radius:12px;padding:4px;margin-bottom:14px}
+.seg button{flex:1;border:none;background:transparent;padding:9px;border-radius:9px;font-weight:700;font-size:13.5px;color:var(--muted);cursor:pointer}
+.seg button.on{background:#fff;color:var(--maroon);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 14px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;z-index:60;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+
+/* Export canvas (off-screen) */
+#xp{position:absolute;left:-99999px;top:0;width:760px;background:#fff;color:#2a1d17;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#xp .xh{background:linear-gradient(135deg,#7a1f1f,#5a1414);color:#fff;padding:20px 22px}
+#xp .xh h2{margin:0;font-size:22px}
+#xp .xh .xb{display:inline-block;background:#f2b632;color:#5a1414;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px;margin-left:8px;vertical-align:middle}
+#xp .xh div{font-size:13px;opacity:.85;margin-top:4px}
+#xp table{width:100%;border-collapse:collapse}
+#xp th{background:#fbf6ef;color:#8a7a70;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:9px 8px;text-align:left;border-bottom:2px solid #eee3d6;position:static;top:auto;border-radius:0}
+#xp td{padding:7px 8px;border-bottom:1px solid #eee3d6;border-radius:0}
+#xp tr.sec td{background:#fff4d6;color:#5a1414;font-weight:800;font-size:12.5px;letter-spacing:.6px;text-transform:uppercase;border-left:4px solid #f2b632;height:32px}
+#xp tr.ck td{background:#fffdf6}
+<!-- fff8e3 -->
+#xp tr.total td{background:#7a1f1f;color:#fff;font-weight:800;padding:12px 8px;font-size:15px;border:none}
+#xp tr.total td.gold{color:#f2b632}
+#xp .foot{padding:10px 22px 16px;color:#8a7a70;font-size:11.5px}
+
+@media (max-width:640px){
+  .col-x{display:none}
+  .m-sub{display:block}
+  td,thead th{padding-left:4px;padding-right:4px}
+  .name{font-size:13.5px}
+  input.qty{width:46px;padding:6px 3px}
+  thead th{font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<header id="head" title="Tap to edit heading">
+  <h1><span id="hTitle"></span><span class="badge" id="hBadge"></span></h1>
+  <p id="hSub"></p>
+</header>
+
+<div class="toolbar">
+  <input type="search" id="q" placeholder="Search…" autocomplete="off">
+  <button class="chip" id="onlyChk" type="button">Checked</button>
+  <button class="chip" id="clear" type="button">Clear</button>
+  <button class="chip icon" id="menuBtn" type="button" aria-label="List options">⋮</button>
+</div>
+
+<main>
+  <label class="autoq">
+    <input type="checkbox" id="autoQty" checked>
+    <span>Checking tickbox will make qty 1, but editable
+      <small>Unticking an item clears its qty · untick this option to keep quantities unchanged</small></span>
+  </label>
+  <div class="card">
+    <table id="tbl">
+      <thead id="thead"></thead>
+      <tbody id="body"></tbody>
+      <tfoot id="tfoot"></tfoot>
+    </table>
+    <div class="empty" id="empty" style="display:none">No items match.</div>
+  </div>
+</main>
+
+<div class="bar">
+  <div class="stat"><b id="bItems">0</b><span>Items</span></div>
+  <div class="stat"><b id="bQty">0</b><span>Qty</span></div>
+  <div class="stat amount" id="bAmtWrap"><b id="bAmt">0</b><span>Total</span></div>
+  <div class="grow"></div>
+  <button class="btn gold" id="exportBtn" type="button">Export</button>
+</div>
+
+<!-- Export (image / pdf) -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h3>Export</h3>
+    <p>Choose the format, then what to include.</p>
+    <div class="seg" id="fmtSeg">
+      <button type="button" data-fmt="image" class="on">Image (PNG)</button>
+      <button type="button" data-fmt="pdf">PDF</button>
+    </div>
+    <label class="autoq" id="renumWrap" style="margin-bottom:12px">
+      <input type="checkbox" id="renum">
+      <span>Re-number <b id="renumName">S.No</b> in export
+        <small>Off: keep original numbers · On: 1, 2, 3… for exported items</small></span>
+    </label>
+    <button class="opt" data-mode="all" type="button"><b>All items</b><small>Full list with your ticks and quantities</small></button>
+    <button class="opt" data-mode="checked" type="button"><b>Only checked</b><small>Just the ticked items with totals</small></button>
+    <button class="btn cancel" data-close type="button">Cancel</button>
+  </div>
+</div>
+
+<!-- List options -->
+<div class="modal" id="menuModal">
+  <div class="sheet">
+    <h3>List options</h3>
+    <p>Edit the heading or swap the whole list using a CSV file.</p>
+    <button class="opt" id="mHead" type="button"><b>Edit heading</b><small>Title, badge, subtitle and currency</small></button>
+    <button class="opt" id="mExport" type="button"><b>Export CSV</b><small>Download the list to edit in Excel / Sheets</small></button>
+    <button class="opt" id="mImport" type="button"><b>Import CSV</b><small>Load a revised list (replaces the current one)</small></button>
+    <button class="opt danger" id="mReset" type="button"><b>Reset to default list</b><small>Bring back the built-in crackers price list</small></button>
+    <div class="hint">
+      <b>CSV layout</b><br>
+      Top rows (optional): <b>#Title</b>, <b>#Badge</b>, <b>#Subtitle</b>, <b>#Currency</b> with the value in the next cell.<br>
+      Then the header row:<br>
+      • <b>1st column</b> = Group (blank for all → no grouping)<br>
+      • <b>Middle columns</b> = anything you like, shown as-is<br>
+      • <b>Last column</b> = price used for Qty × Price (no numbers there → plain checklist, no price/amount)<br>
+      Column names come from the header row.
+    </div>
+    <button class="btn cancel" data-close type="button">Close</button>
+  </div>
+</div>
+
+<!-- Edit heading -->
+<div class="modal" id="headModal">
+  <div class="sheet">
+    <h3>Edit heading</h3>
+    <p>Shown at the top of the page and in exports.</p>
+    <label class="fld"><span>Title</span><input id="fTitle" maxlength="80"></label>
+    <label class="fld"><span>Badge (optional)</span><input id="fBadge" maxlength="40" placeholder="e.g. Name - PhoneNumber"></label>
+    <label class="fld"><span>Subtitle (optional)</span><textarea id="fSub" rows="2" maxlength="200"></textarea></label>
+    <label class="fld"><span>Currency symbol</span><input id="fCur" maxlength="4" placeholder="₹"></label>
+    <div class="row2">
+      <button class="btn cancel" data-close type="button">Cancel</button>
+      <button class="btn primary" id="fSave" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="csvFile" accept=".csv,text/csv,text/comma-separated-values,application/vnd.ms-excel,text/plain" hidden>
+<div class="toast" id="toast"></div>
+<div id="xp"></div>
+
+<script>
+/* ============ DEFAULT LIST (crackers price list) ============
+   item: [S.No, Product, Content, Rate, Final]
+   Used only when no list has been imported yet.               */
+const SECTIONS = [
+ {t:'Loose Crackers', items:[
+  [1,'2 3/4" Kuruvi','5 Pcs',35,7],[2,'3 1/2 Lakshmi','5 Pcs',75,15],[3,'4" Lakshmi','5 Pcs',95,19],
+  [4,'4" Gold Lakshmi','5 Pcs',150,30],[5,'4" Lakshmi (Deluxe)','5 Pcs',140,28],[6,'5" Jallikattu','5 Pcs',225,45],
+  [7,'6" Kumki','5 Pcs',300,60]]},
+ {t:'Single Shot Maroons', items:[
+  [8,'1/4 Money in the Bank','1 Pcs',275,55],[9,'1/2 Money in the Bank','1 Pcs',550,110],[10,'1 Money in the Bank','1 Pcs',1100,220],
+  [11,'Lucky Money','3 Pcs',875,175],[12,'Oola Vedi','25 Pcs',875,175],[13,'1/4 kg Money in the Bank','10 Pcs',2250,450]]},
+ {t:'Flower Pots', items:[
+  [14,'Flower pots Big','10 Pcs',350,70],[15,'Flower pots Special','10 Pcs',450,90],[16,'Flower pots Asoka','10 Pcs',575,115],
+  [17,'Flower pots Deluxe','5 Pcs',875,175],[18,'Colour Koti','10 Pcs',1000,200],[19,'Colour Koti Deluxe','10 Pcs',1750,350],
+  [20,'TRI Colour Foundation','5 Pcs',1500,300]]},
+ {t:'Ground Chakkar', items:[
+  [21,'Ground chakkar Big','25 Pcs',450,90],[22,'Ground Chakkar Special','10 Pcs',450,90],[23,'Ground Chakkar Big','10 Pcs',225,45],
+  [24,'Ground chakkar Asoka','10 Pcs',325,65],[25,'Ground Chakkar Deluxe','10 Pcs',650,130],[26,'Dancing Wheel','5 Pcs',400,80],
+  [27,'Ground Chakkar Spinner','10 Pcs',775,155]]},
+ {t:'Twinkling Star', items:[
+  [28,'1 1/2" Twinkling Star','10 Pcs',125,25],[29,'4" Twinkling Star','10 Pcs',325,65]]},
+ {t:'Rockets', items:[
+  [30,'Rocket Bomb','10 Pcs',300,60],[31,'2 Sound Rocket','10 Pcs',600,120],[32,'Lunik Rocket','10 Pcs',650,130],
+  [33,'Hitro','10 Pcs',200,40]]},
+ {t:'Bomb', items:[
+  [34,'Bullet Bomb','10 Pcs',150,30],[35,'King Bomb','10 Pcs',425,85],[36,'Classic Bomb','10 Pcs',650,130],
+  [37,'Spider Bomb (Big)','10 Pcs',1050,210]]},
+ {t:'Bijili', items:[
+  [38,'50 Red Bijili','1 Pkt',85,17],[39,'100 Stripped Bijili','1 Pkt',175,35]]},
+ {t:'Pencil', items:[
+  [40,'7" pencil','10 Pcs',150,30],[41,'10" pencil','10 Pcs',450,90]]},
+ {t:'Fancy Novelties', items:[
+  [42,'Selfie Stick (3 Pcs)','1 Pcs',250,50],[43,'Top Gun','5 Pcs',1100,220],[44,'Water Falls','5 Pcs',1000,200],
+  [45,'Popcorn Pencil','5 Pcs',1000,200],[46,'Magical peacock','1 Pcs',900,180],[47,'3 Features peacock','1 Pcs',900,180],
+  [48,'Bada Magical Peacock (5" Features)','1 Pcs',1500,300],[49,'5 Features Bada peacock','1 Pcs',2250,450],
+  [50,'Photo Flash','5 Pcs',400,80],[51,'4X4 Wheel','5 Pcs',900,180],[52,'Colour Smoke','3 Pcs',900,180],
+  [53,'Bambaram','10 Pcs',750,150],[54,'Helicopter','5 Pcs',500,100],[55,'Butterfly','10 Pcs',450,90],
+  [56,'Aqua Queen (Water Queen)','1 Pcs',900,180],[57,'Chit put','10 Pcs',175,35],[58,'Siren (Small)','5 Pcs',800,160],
+  [59,'Siren (Big)','2 Pcs',800,160],[60,'Drone','5 Pcs',1000,200],[61,'Mankatha (Day & Night)','5 Pcs',1125,225],
+  [62,'Wire chakaram','5 Pcs',1000,200],[63,'Tin (Foundation)','1 Pcs',650,130],[64,'Live Show (Red & Green)','1 Pcs',900,180],
+  [65,'Emoji (Crackling)','1 Pcs',900,180],[66,'Big Fountain (Crackling)','1 Pcs',1550,310],[67,'Cocket Crackling','3 Pcs',1500,300],
+  [68,'Motu patlu (Crackling Wheel Foundation Siren)','2 Pcs',1200,240],[69,'Shower 5 in 1','5 Pcs',300,60],
+  [70,'Digital Wala Special','1 Pcs',450,90],[71,'Bat Ball (Colour Smoke & Crackling)','1 Pcs',1050,210],
+  [72,'Cylinder Bomb (Colour Smoke & Bomb Flash)','1 Pcs',900,180],[73,'Chota','1 Pcs',250,50],[74,'Penta','5 Pcs',1000,200]]},
+ {t:'Fancy', items:[
+  [75,'2" Fancy','1 Pcs',600,120],[76,'2 1/2" Fancy','1 Pcs',800,160],[77,'3" Piece Fancy','3 Pcs',1400,280],
+  [78,'3 1/2" Fancy','1 Pcs',1500,300],[79,'4 1/2" Fancy','1 Pcs',1900,380],[80,'4 1/2" Fancy (Double Ball)','1 Pcs',2900,580],
+  [81,'4 1/2" Fancy (Window Pack)','2 Pcs',4250,850],[82,'5" Train Series','2 Pcs',5250,1050],
+  [83,'6" Fancy Doctor (Special)','1 Pcs',4500,900],[84,'6" Plane Series','2 Pcs',6250,1250]]},
+ {t:'Repeating Shooters', items:[
+  [85,'Sky Shot','10 Pcs',800,160],[86,'Sky Shot Crackling','10 Pcs',850,170],[87,'Juniper Green (Windowpack)','6 Pcs',800,160],
+  [88,'7 Shot','5 Pcs',675,135],[89,'12 Shot (Red & Green)','1 Pcs',900,180],[90,'12 Shot (Sky War)','1 Pcs',1250,250],
+  [91,'25 Shot (Red & Green) Crackling','1 Pcs',1750,350],[92,'50 Shot (Red & Green) Crackling','1 Pcs',3500,700],
+  [93,'15 Shot (Multicolour)','1 Pcs',1400,280],[94,'30 Shot (Multicolour) Special','1 Pcs',2250,450],
+  [95,'60 Shot (Multicolour)','1 Pcs',4500,900],[96,'120 Shot (Multicolour)','1 Pcs',9000,1800],
+  [97,'240 Shot (Multicolour)','1 Pcs',18000,3600],[98,'30 Shot (Multicolour)','1 Pcs',1750,350]]},
+ {t:'Wala', items:[
+  [99,'28 C','1 Pcs',80,16],[100,'100 C','1 Pcs',225,45],[101,'1 Shot (Wala) H','1 Pcs',1000,200],
+  [102,'2 Shot Wala H','1 Pcs',2000,400],[103,'5 Shot Wala H','1 Pcs',5000,1000],[104,'10 Shot Wala H','1 Pcs',10000,2000]]},
+ {t:'Matches', items:[
+  [105,'Colour Match Box','10 Box',75,15],[106,'Chutti','10 Box',175,35],[107,'Super Dora','10 Box',325,65],
+  [108,'Deluxe Super','10 Box',600,120],[109,'Lamba Colour Match','10 Box',800,160],[110,'Laptop','10 Box',1200,240],
+  [111,'Disney','10 Box',1100,220]]},
+ {t:'2025 New Sparklers', items:[
+  [112,'Rotating Sparklers','1 Box',1250,250]]},
+ {t:'Sparklers', items:[
+  [113,'7cm Electric Sparklers','10 Pcs',50,10],[114,'7cm Colour Sparklers','10 Pcs',70,14],
+  [115,'10cm Electric Sparklers','10 Pcs',95,19],[116,'10cm Colour Sparklers','10 Pcs',105,21],
+  [117,'12cm Electric Sparklers','10 Pcs',125,25],[118,'12cm Colour Sparklers','10 Pcs',135,27],
+  [119,'15cm Electric Sparklers','10 Pcs',220,44],[120,'15cm Colour Sparklers','10 Pcs',235,47],
+  [121,'15cm Green Sparklers','10 Pcs',270,54],[122,'15cm Red Sparklers','10 Pcs',350,70],
+  [123,'30cm Electric Sparklers','5 Pcs',135,27],[124,'30cm Colour Sparklers','5 Pcs',220,44],
+  [125,'30cm Green Sparklers','5 Pcs',235,47],[126,'30cm Red Sparklers','5 Pcs',270,54],
+  [127,'50cm Electric Sparklers','5 Pcs',900,180],[128,'50cm Colour Sparklers','5 Pcs',1000,200]]},
+ {t:'2026 New Arrivals', items:[
+  [129,'Tiddo','1 Pcs',750,150],[130,'Star Drum','2 Pcs',800,160],[131,'Icone','2 Pcs',900,180],
+  [132,'Watermelon','1 Pcs',900,180],[133,'Red Flare','5 Pcs',900,180],[134,'Hydrate','1 Pcs',900,180],
+  [135,'Retro (Red, Green)','1 Pcs',900,180],[136,'Golden Tree (Yellow, Green, Silver, Red)','5 Pcs',1000,200],
+  [137,'Colour Galaxy (Red, Green, Yellow crackling)','5 Pcs',1000,200],[138,'Amazing (Five Different colours)','2 Pcs',1500,300],
+  [139,'Big Shining Star (Red, Yellow) Crackling','1 Pcs',1550,310],[140,'Big Foundation','1 Pcs',1550,310]]},
+ {t:'Gift Box', nd:true, note:'Not discounted', items:[
+  [1,'19 Item','1 Box',null,330],[2,'23 Item','1 Box',null,400],[3,'27 Item','1 Box',null,450],
+  [4,'33 Item','1 Box',null,520],[5,'38 Item','1 Box',null,620],[6,'45 Item','1 Box',null,720],
+  [7,'52 Item','1 Box',null,920],[8,'63 Item','1 Box',null,1040],[9,'70 Item','1 Box',null,1350],
+  [10,'81 Item','1 Box',null,1550]]}
+];
+
+const DEFAULT_META = {
+  title: 'Crackers Price List',
+  badge: 'Name - PhoneNumber',
+  subtitle: 'Tick an item and enter quantity to include it in the total · Gift boxes are not discounted',
+  currency: '₹'
+};
+const DEFAULT_HEADERS = ['Group', 'S.No', 'Product', 'Content', 'Rate', '80% Off'];
+
+function defaultList(){
+  const rows = [];
+  SECTIONS.forEach(s => s.items.forEach(([sno, name, content, rate, final]) => rows.push([
+    s.t + (s.note ? ` (${s.note})` : ''), String(sno), name, content,
+    rate == null ? '' : Number(rate).toLocaleString('en-IN'), String(final)
+  ])));
+  return {...DEFAULT_META, headers:[...DEFAULT_HEADERS], rows};
+}
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtN = n => Number(n).toLocaleString('en-IN', {maximumFractionDigits:2});
+const money = n => (LIST.currency || '') + fmtN(n);
+const LIST_KEY = 'priceList.list.v2', STATE_KEY = 'priceList.state.v2';
+const lsGet = k => { try { return localStorage.getItem(k); } catch(e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch(e) {} };
+
+/* ============ list + state ============ */
+let LIST = null;
+try { LIST = JSON.parse(lsGet(LIST_KEY)); } catch(e) {}
+if(!LIST || !Array.isArray(LIST.headers) || LIST.headers.length < 3 || !Array.isArray(LIST.rows)) LIST = defaultList();
+const saveList = () => lsSet(LIST_KEY, JSON.stringify(LIST));
+
+let state = {};
+try { state = JSON.parse(lsGet(STATE_KEY)) || {}; } catch(e) {}
+
+/* one-time carry-over of ticks/qty saved by the earlier version (keys p1…p140, g1…g10) */
+if(lsGet(STATE_KEY) == null && lsGet(LIST_KEY) == null){
+  try{
+    const old = JSON.parse(lsGet('crackersPriceList.v1'));
+    if(old){
+      let i = 0;
+      SECTIONS.forEach(s => s.items.forEach(([sno]) => {
+        const o = old[(s.nd ? 'g' : 'p') + sno];
+        if(o && (o.c || o.q)) state['r' + i] = {c: !!o.c, q: String(o.q ?? '')};
+        i++;
+      }));
+      lsSet(STATE_KEY, JSON.stringify(state));
+    }
+  } catch(e) {}
+}
+const saveState = () => lsSet(STATE_KEY, JSON.stringify(state));
+const st = k => state[k] || (state[k] = {c:false, q:''});
+
+/* ============ model: works out columns & groups from the list ============ */
+let M;
+function buildModel(){
+  const H = LIST.headers, n = H.length, P = n - 1;
+  const rows = LIST.rows.map(r => { const a = []; for(let c = 0; c < n; c++) a.push(String(r[c] ?? '').trim()); return a; });
+  const priceOf = v => { if(/[a-z]/i.test(v)) return null; const raw = v.replace(/[^\d.-]/g, ''); return raw === '' || isNaN(Number(raw)) ? null : Number(raw); };
+  // no numbers in the last column → plain checklist (no price / amount)
+  const priced = rows.some(r => priceOf(r[P]) != null);
+  const mid = []; for(let c = 1; c < (priced ? P : n); c++) mid.push(c);
+
+  const isNum = v => /^-?[\d,]*\.?\d+$/.test(v.replace(/[^\d.,-]/g, '') ) && /\d/.test(v) && !/[a-z]/i.test(v);
+  const info = {};
+  mid.forEach(c => {
+    const vals = rows.map(r => r[c]).filter(Boolean), nums = vals.filter(isNum);
+    info[c] = {
+      numeric: vals.length > 0 && nums.length / vals.length >= .8,
+      decimal: nums.some(v => /[.,]/.test(v)),
+      avg: vals.reduce((s, v) => s + v.length, 0) / (vals.length || 1)
+    };
+  });
+  // main column = longest text column (it carries the mobile sub-line)
+  const textCols = mid.filter(c => !info[c].numeric);
+  const main = textCols.length ? textCols.reduce((b, c) => info[c].avg > info[b].avg ? c : b) : (mid[0] ?? null);
+  const collapsed = new Set(mid.filter(c => main != null && c > main));
+
+  const items = rows.map((r, i) => ({k:'r' + i, g:r[0], cells:r, price: priced ? priceOf(r[P]) : null}));
+
+  // groups: by first appearance; none at all when every group cell is blank
+  const grouped = items.some(it => it.g !== '');
+  const order = [], map = new Map();
+  items.forEach(it => {
+    const key = grouped ? it.g : '\u0000';
+    if(!map.has(key)){ map.set(key, []); order.push(key); }
+    map.get(key).push(it);
+  });
+  const sections = order.map(key => ({title: grouped ? key : null, items: map.get(key)}));
+  sections.forEach((s, si) => s.items.forEach(it => it.si = si));
+
+  // serial-number column: header like S.No / Sl / # / Serial, else first whole-number column
+  const intCols = mid.filter(c => info[c].numeric && !info[c].decimal);
+  const snoCol = intCols.find(c => /^(s\.?\s*no\.?|sl\.?\s*no\.?|sr\.?\s*no\.?|serial|no\.?|#)$/i.test(H[c].trim())) ?? intCols[0] ?? null;
+  M = {H, P, mid, info, main, collapsed, items, sections, grouped, priced, snoCol};
+}
+
+/* display text for a cell: amount-style columns (numbers with , or .) are shown as
+   whole-number-or-up-to-2-decimals with commas, so 35.00 → 35 and 1100 → 1,100 */
+const dispCell = (it, c) => {
+  const v = it.cells[c];
+  if(!M.info[c] || !(M.info[c].numeric && M.info[c].decimal) || v === '') return v;
+  const n = Number(v.replace(/[^\d.-]/g, ''));
+  return isNaN(n) ? v : fmtN(n);
+};
+const counted = it => { const s = state[it.k]; return M.priced ? !!(s && s.c && Number(s.q) > 0 && it.price != null) : !!(s && s.c); };
+const colClass = c => {
+  const i = M.info[c], cls = [];
+  if(c === M.main) cls.push('name');
+  else if(i.numeric && !i.decimal) cls.push('sno');
+  if(i.numeric && i.decimal) cls.push('num', 'muted');
+  if(M.collapsed.has(c)) cls.push('col-x');
+  return cls.join(' ');
+};
+
+/* ============ render ============ */
+function renderHeading(){
+  $('#hTitle').textContent = LIST.title || 'List';
+  $('#hBadge').textContent = LIST.badge || '';
+  $('#hBadge').style.display = LIST.badge ? '' : 'none';
+  $('#hSub').textContent = LIST.subtitle || '';
+  $('#hSub').style.display = LIST.subtitle ? '' : 'none';
+  document.title = LIST.title || 'List';
+}
+
+function render(){
+  const {H, P, mid, priced} = M, cols = mid.length + (priced ? 4 : 2);
+  $('#thead').innerHTML = `<tr>
+    <th class="c" style="width:32px">✓</th>
+    ${mid.map(c => `<th class="${M.collapsed.has(c) ? 'col-x ' : ''}${M.info[c].numeric && M.info[c].decimal ? 'num' : ''}">${esc(H[c])}</th>`).join('')}
+    ${priced ? `<th class="num">${esc(H[P])}</th>` : ''}<th class="c">Qty</th>${priced ? '<th class="num">Amount</th>' : ''}</tr>`;
+
+  let h = '';
+  M.sections.forEach((s, si) => {
+    if(M.grouped) h += `<tr class="sec" data-si="${si}"><td colspan="${cols}">${s.title ? esc(s.title) : '&nbsp;'}</td></tr>`;
+    s.items.forEach(it => {
+      const v = st(it.k);
+      const sub = [...M.collapsed].map(c => it.cells[c] ? (M.info[c].numeric ? `<i>${esc(H[c])}</i> ` : '') + esc(dispCell(it, c)) : '').filter(Boolean).join(' · ');
+      h += `<tr class="item" data-k="${it.k}" data-si="${si}">
+        <td class="c"><input type="checkbox" class="ck" ${v.c ? 'checked' : ''} aria-label="Select"></td>
+        ${mid.map(c => `<td class="${colClass(c)}">${esc(dispCell(it, c))}${c === M.main && sub ? `<span class="m-sub">${sub}</span>` : ''}</td>`).join('')}
+        ${priced ? `<td class="num final">${it.price != null ? fmtN(it.price) : esc(it.cells[P])}</td>` : ''}
+        <td class="c"><input type="number" class="qty" min="0" step="1" inputmode="numeric" value="${esc(v.q)}" aria-label="Quantity"></td>
+        ${priced ? '<td class="num amt"></td>' : ''}
+      </tr>`;
+    });
+  });
+  $('#body').innerHTML = h;
+
+  $('#tfoot').innerHTML = `<tr class="total"><td></td>
+    ${mid.map(c => `<td class="${M.collapsed.has(c) ? 'col-x' : ''}">${c === (M.main ?? mid[0]) ? `Total <span id="tItems" style="font-weight:600;opacity:.8;font-size:12px"></span>` : ''}</td>`).join('')}
+    ${priced ? '<td></td>' : ''}<td class="c gold" id="tQty">0</td>${priced ? '<td class="num gold" id="tAmt">0</td>' : ''}</tr>`;
+
+  M.items.forEach(updateRow);
+  totals();
+}
+
+function updateRow(it){
+  const tr = document.querySelector(`tr[data-k="${it.k}"]`);
+  if(!tr) return;
+  const v = st(it.k);
+  tr.classList.toggle('checked', !!v.c);
+  const amt = tr.querySelector('.amt');
+  if(amt) amt.textContent = counted(it) ? money(it.price * Number(v.q)) : '';
+}
+
+function totals(){
+  let items = 0, qty = 0, amt = 0;
+  M.items.forEach(it => { if(counted(it)){ const q = Number(state[it.k].q) || 0; items++; qty += q; if(M.priced) amt += q * it.price; } });
+  const ti = $('#tItems'); if(ti) ti.textContent = items ? `(${items} items)` : '';
+  $('#tQty').textContent = fmtN(qty);
+  if($('#tAmt')) $('#tAmt').textContent = money(amt);
+  $('#bAmtWrap').style.display = M.priced ? '' : 'none';
+  $('#bItems').textContent = items; $('#bQty').textContent = fmtN(qty); $('#bAmt').textContent = money(amt);
+  return {items, qty, amt};
+}
+
+/* ============ filtering ============ */
+let onlyChecked = false;
+function filter(){
+  const q = $('#q').value.trim().toLowerCase();
+  const visibleSec = new Set();
+  M.items.forEach(it => {
+    const tr = document.querySelector(`tr[data-k="${it.k}"]`);
+    const text = M.mid.map(c => it.cells[c]).join(' ').toLowerCase();
+    const show = (!q || text.includes(q)) && (!onlyChecked || state[it.k]?.c);
+    tr.classList.toggle('hide', !show);
+    if(show) visibleSec.add(String(it.si));
+  });
+  document.querySelectorAll('tr.sec').forEach(tr => tr.classList.toggle('hide', !visibleSec.has(tr.dataset.si)));
+  $('#empty').style.display = visibleSec.size ? 'none' : 'block';
+}
+
+function rebuild(){ buildModel(); renderHeading(); render(); filter(); syncHeaderOffset(); }
+
+/* ============ row events ============ */
+$('#body').addEventListener('input', e => {
+  const tr = e.target.closest('tr.item'); if(!tr) return;
+  const it = M.items.find(i => i.k === tr.dataset.k), v = st(it.k);
+  if(e.target.classList.contains('qty')){
+    const q = e.target.value.replace(/[^\d]/g, '');
+    if(q !== e.target.value) e.target.value = q;
+    v.q = q;
+  }
+  if(e.target.classList.contains('ck')){
+    v.c = e.target.checked;
+    if(autoQty){
+      if(v.c && !(Number(v.q) > 0)){ v.q = '1'; tr.querySelector('.qty').value = '1'; }
+      else if(!v.c){ v.q = ''; tr.querySelector('.qty').value = ''; }
+    }
+  }
+  saveState(); updateRow(it); totals();
+  if(onlyChecked && e.target.classList.contains('ck')) filter();
+});
+
+/* auto-qty setting (default ON, remembered) */
+const AQ_KEY = 'crackersPriceList.autoQty';
+let autoQty = lsGet(AQ_KEY) !== '0';
+$('#autoQty').checked = autoQty;
+$('#autoQty').addEventListener('change', e => { autoQty = e.target.checked; lsSet(AQ_KEY, autoQty ? '1' : '0'); });
+
+$('#q').addEventListener('input', filter);
+$('#onlyChk').addEventListener('click', () => { onlyChecked = !onlyChecked; $('#onlyChk').classList.toggle('on', onlyChecked); filter(); });
+$('#clear').addEventListener('click', () => {
+  if(!confirm('Clear all ticks and quantities?')) return;
+  state = {}; saveState(); render(); filter(); toast('Cleared');
+});
+
+/* ============ modals ============ */
+const openM = id => $(id).classList.add('open');
+const closeM = el => el.closest('.modal').classList.remove('open');
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => { if(e.target === m) m.classList.remove('open'); });
+  m.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeM(b)));
+});
+
+/* ============ heading editor ============ */
+function openHeading(){
+  $('#fTitle').value = LIST.title || ''; $('#fBadge').value = LIST.badge || '';
+  $('#fSub').value = LIST.subtitle || ''; $('#fCur').value = LIST.currency ?? '';
+  openM('#headModal');
+}
+$('#head').addEventListener('click', openHeading);
+$('#mHead').addEventListener('click', () => { $('#menuModal').classList.remove('open'); openHeading(); });
+$('#fSave').addEventListener('click', () => {
+  LIST.title = $('#fTitle').value.trim(); LIST.badge = $('#fBadge').value.trim();
+  LIST.subtitle = $('#fSub').value.trim(); LIST.currency = $('#fCur').value.trim();
+  saveList(); renderHeading(); M.items.forEach(updateRow); totals(); syncHeaderOffset();
+  $('#headModal').classList.remove('open'); toast('Heading saved');
+});
+
+/* ============ CSV ============ */
+$('#menuBtn').addEventListener('click', () => openM('#menuModal'));
+
+function toCSV(){
+  const q = v => { v = String(v ?? ''); return /[",\r\n]|^\s|\s$/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const lines = [
+    ['#Title', LIST.title], ['#Badge', LIST.badge], ['#Subtitle', LIST.subtitle], ['#Currency', LIST.currency],
+    LIST.headers, ...LIST.rows
+  ];
+  return '﻿' + lines.map(r => r.map(q).join(',')).join('\r\n');
+}
+
+function parseCSV(text){
+  const rows = []; let row = [], cell = '', i = 0, inQ = false;
+  while(i < text.length){
+    const ch = text[i];
+    if(inQ){
+      if(ch === '"'){ if(text[i+1] === '"'){ cell += '"'; i += 2; continue; } inQ = false; i++; continue; }
+      cell += ch; i++; continue;
+    }
+    if(ch === '"'){ inQ = true; i++; continue; }
+    if(ch === ','){ row.push(cell); cell = ''; i++; continue; }
+    if(ch === '\r'){ i++; continue; }
+    if(ch === '\n'){ row.push(cell); rows.push(row); row = []; cell = ''; i++; continue; }
+    cell += ch; i++;
+  }
+  if(cell !== '' || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+
+function fromCSV(text, fname){
+  // Excel in some regions saves with ';' — detect it from the header area
+  text = text.replace(/^﻿/, '');
+  const firstLines = text.split(/\r?\n/).slice(0, 8).join('\n');
+  if((firstLines.match(/;/g) || []).length > (firstLines.match(/,/g) || []).length)
+    text = text.replace(/;(?=(?:[^"]*"[^"]*")*[^"]*$)/gm, ',');
+
+  const rows = parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
+  const meta = {}; let i = 0;
+  while(i < rows.length && /^#/.test((rows[i][0] || '').trim())){
+    meta[rows[i][0].trim().slice(1).trim().toLowerCase()] = (rows[i][1] ?? '').trim(); i++;
+  }
+  if(i >= rows.length) throw new Error('No header row found');
+  const headers = rows[i].map(h => h.trim());
+  while(headers.length && headers[headers.length - 1] === '') headers.pop();
+  if(headers.length < 3) throw new Error('Need at least 3 columns: Group, an item column and the price column');
+  const body = rows.slice(i + 1).map(r => headers.map((_, c) => (r[c] ?? '').trim()))
+                   .filter(r => r.slice(1).some(Boolean));
+  if(!body.length) throw new Error('No item rows found under the header');
+  const pick = (k, fb) => k in meta ? meta[k] : fb;
+  return {
+    title: pick('title', (fname || '').replace(/\.[^.]+$/, '') || LIST.title), badge: pick('badge', ''), subtitle: pick('subtitle', ''),
+    currency: pick('currency', LIST.currency || '₹'), headers, rows: body
+  };
+}
+
+const slug = s => (s || 'list').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'list';
+
+$('#mExport').addEventListener('click', () => {
+  $('#menuModal').classList.remove('open');
+  const blob = new Blob([toCSV()], {type:'text/csv;charset=utf-8'});
+  deliverFile(blob, `${slug(LIST.title)}.csv`, 'text/csv', 'CSV');
+});
+
+$('#mImport').addEventListener('click', () => { $('#menuModal').classList.remove('open'); $('#csvFile').value = ''; $('#csvFile').click(); });
+$('#csvFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{
+    const next = fromCSV(await f.text(), f.name);
+    const groups = new Set(next.rows.map(r => r[0]).filter(Boolean)).size;
+    if(!confirm(`Load "${next.title || f.name}"?\n${next.rows.length} items · ${next.headers.length} columns · ${groups ? groups + ' groups' : 'no groups'}\n\nThis replaces the current list and clears ticks and quantities.`)) return;
+    LIST = next; saveList(); state = {}; saveState();
+    $('#q').value = ''; rebuild(); toast('List imported');
+  } catch(err){ alert('Could not import this CSV.\n\n' + (err.message || err)); }
+});
+
+$('#mReset').addEventListener('click', () => {
+  if(!confirm('Replace the current list with the built-in crackers price list?\nTicks and quantities will be cleared.')) return;
+  $('#menuModal').classList.remove('open');
+  LIST = defaultList(); saveList(); state = {}; saveState();
+  $('#q').value = ''; rebuild(); toast('Default list restored');
+});
+
+/* ============ export (image / pdf) ============ */
+$('#exportBtn').addEventListener('click', () => openM('#modal'));
+
+/* re-number serial column in exports (remembered) */
+const RN_KEY = 'priceList.renumber';
+$('#renum').checked = lsGet(RN_KEY) === '1';
+$('#renum').addEventListener('change', e => lsSet(RN_KEY, e.target.checked ? '1' : '0'));
+$('#exportBtn').addEventListener('click', () => {
+  const has = M.snoCol != null;
+  $('#renumWrap').style.display = has ? '' : 'none';
+  if(has) $('#renumName').textContent = M.H[M.snoCol] || 'S.No';
+});
+/* cell text for export, applying re-numbering to the serial column */
+const exportCell = (it, c, n) => (c === M.snoCol && $('#renum').checked) ? String(n) : dispCell(it, c);
+
+const FMT_KEY = 'crackersPriceList.exportFmt';
+let exportFmt = lsGet(FMT_KEY) === 'pdf' ? 'pdf' : 'image';
+const segBtns = document.querySelectorAll('#fmtSeg button');
+const paintSeg = () => segBtns.forEach(b => b.classList.toggle('on', b.dataset.fmt === exportFmt));
+segBtns.forEach(b => b.addEventListener('click', () => { exportFmt = b.dataset.fmt; paintSeg(); lsSet(FMT_KEY, exportFmt); }));
+paintSeg();
+
+$('#modal').querySelectorAll('.opt').forEach(b => b.addEventListener('click', () => {
+  $('#modal').classList.remove('open');
+  if(exportFmt === 'pdf') exportPDF(b.dataset.mode); else exportImage(b.dataset.mode);
+}));
+
+/* share sheet on mobile, download elsewhere */
+async function deliverFile(blob, name, type, label){
+  const file = new File([blob], name, {type});
+  if(navigator.canShare && navigator.canShare({files:[file]}) && /Android|iPhone|iPad/i.test(navigator.userAgent)){
+    try{ await navigator.share({files:[file], title:LIST.title || 'List'}); toast('Shared'); return; }
+    catch(e){ if(e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(label + ' saved');
+}
+
+/* sections/items included in an export */
+function exportSections(mode){
+  return M.sections.map(s => ({title:s.title, items:s.items.filter(it => mode === 'all' || state[it.k]?.c)}))
+                   .filter(s => s.items.length);
+}
+const isRight = c => M.info[c].numeric && M.info[c].decimal;
+const today = () => new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+const fileName = (mode, ext) => `${slug(LIST.title)}-${mode}-${new Date().toISOString().slice(0,10)}.${ext}`;
+
+function buildExport(mode){
+  const t = totals(), {H, P, mid, priced} = M, cols = mid.length + (priced ? 4 : 2);
+  let rows = '', n = 0;
+  exportSections(mode).forEach(s => {
+    if(M.grouped) rows += `<tr class="sec"><td colspan="${cols}">${s.title ? esc(s.title) : '&nbsp;'}</td></tr>`;
+    s.items.forEach(it => {
+      const v = state[it.k] || {};
+      rows += `<tr class="${v.c ? 'ck' : ''}">
+        <td style="text-align:center;color:#7a1f1f;font-weight:800">${v.c ? '✔' : ''}</td>
+        ${(++n, mid.map(c => `<td style="${c === M.main ? 'font-weight:600;' : ''}${isRight(c) ? 'text-align:right;color:#8a7a70;' : (M.info[c].numeric ? 'color:#8a7a70;' : '')}">${esc(exportCell(it, c, n))}</td>`).join(''))}
+        ${priced ? `<td style="text-align:right;font-weight:700;color:#7a1f1f">${it.price != null ? fmtN(it.price) : esc(it.cells[P])}</td>` : ''}
+        <td style="text-align:center">${v.q ? esc(v.q) : ''}</td>
+        ${priced ? `<td style="text-align:right;font-weight:700;color:#1d7a46;white-space:nowrap">${counted(it) ? money(it.price * Number(v.q)) : ''}</td>` : ''}
+      </tr>`;
+    });
+  });
+  const xp = $('#xp');
+  xp.style.width = Math.max(760, 560 + mid.length * 90) + 'px';
+  xp.innerHTML = `
+    <div class="xh"><h2>${esc(LIST.title || 'List')}${LIST.badge ? `<span class="xb">${esc(LIST.badge)}</span>` : ''}${mode === 'checked' ? ' — Selected' : ''}</h2>
+      <div>${LIST.subtitle ? esc(LIST.subtitle) + ' · ' : ''}${today()}</div></div>
+    <table>
+      <thead><tr><th style="width:30px;text-align:center">✓</th>
+        ${mid.map(c => `<th style="${isRight(c) ? 'text-align:right' : ''}">${esc(H[c])}</th>`).join('')}
+        ${priced ? `<th style="text-align:right">${esc(H[P])}</th>` : ''}<th style="text-align:center">Qty</th>${priced ? '<th style="text-align:right">Amount</th>' : ''}</tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr class="total"><td colspan="${mid.length + (priced ? 2 : 1)}">Total${t.items ? ` (${t.items} ${priced ? 'items' : 'ticked'})` : ''}</td>
+        <td class="gold" style="text-align:center">${fmtN(t.qty)}</td>
+        ${priced ? `<td class="gold" style="text-align:right;white-space:nowrap">${money(t.amt)}</td>` : ''}</tr></tfoot>
+    </table>
+    ${priced ? '<div class="foot">Amount is shown only for ticked items with a quantity.</div>' : '<div class="foot"></div>'}`;
+}
+
+async function exportImage(mode){
+  if(mode === 'checked' && !M.items.some(i => state[i.k]?.c)){ toast('No items are checked'); return; }
+  if(typeof html2canvas === 'undefined'){ toast('Image library not loaded — check internet'); return; }
+  toast('Creating image…');
+  buildExport(mode);
+  try{
+    const canvas = await html2canvas($('#xp'), {scale:2, backgroundColor:'#ffffff', useCORS:true, logging:false});
+    canvas.toBlob(blob => deliverFile(blob, fileName(mode, 'png'), 'image/png', 'Image'), 'image/png');
+  } catch(err){ toast('Export failed'); console.error(err); }
+  finally{ setTimeout(() => $('#xp').innerHTML = '', 500); }
+}
+
+function exportPDF(mode){
+  if(mode === 'checked' && !M.items.some(i => state[i.k]?.c)){ toast('No items are checked'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ toast('PDF library not loaded — check internet'); return; }
+  toast('Creating PDF…');
+  try{
+    const {jsPDF} = window.jspdf, {H, P, mid, priced} = M;
+    const wide = mid.length > 5;
+    const doc = new jsPDF({unit:'pt', format:'a4', orientation: wide ? 'landscape' : 'portrait'});
+    const W = doc.internal.pageSize.getWidth();
+    const t = totals();
+    // ₹ isn't in standard PDF fonts → "Rs."
+    const cur = (LIST.currency || '') === '₹' ? 'Rs. ' : (LIST.currency ? LIST.currency + ' ' : '');
+    const pm = n => cur + fmtN(n);
+    const nCols = mid.length + (priced ? 4 : 2);
+    const PI = priced ? mid.length + 1 : -1;             // price column index in the PDF table
+    const QI = priced ? PI + 1 : mid.length + 1, AI = priced ? PI + 2 : -1;
+
+    const body = [], ticked = new Set(); let n = 0;
+    exportSections(mode).forEach(s => {
+      if(M.grouped) body.push([{content: s.title ? s.title.toUpperCase() : ' ', colSpan:nCols,
+        styles:{fillColor:[255,244,214], textColor:[90,20,20], fontStyle:'bold', fontSize:9}}]);		
+      s.items.forEach(it => {
+        const v = state[it.k] || {};
+        if(v.c) ticked.add(body.length);
+        n++;
+        const r = ['', ...mid.map(c => exportCell(it, c, n))];
+        if(priced) r.push(it.price != null ? fmtN(it.price) : it.cells[P]);
+        r.push(v.q ? String(v.q) : '');
+        if(priced) r.push(counted(it) ? pm(it.price * Number(v.q)) : '');
+        body.push(r);
+      });
+    });
+
+    // title band
+    doc.setFillColor(122,31,31); doc.rect(0, 0, W, 64, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    const title = (LIST.title || 'List') + (LIST.badge ? '  ·  ' + LIST.badge : '') + (mode === 'checked' ? '  -  Selected' : '');
+    doc.text(title, 32, 32);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(doc.splitTextToSize((LIST.subtitle ? LIST.subtitle + '  ·  ' : '') + today(), W - 64)[0], 32, 50);
+
+    const colStyles = {0:{cellWidth:20, halign:'center'}};
+    mid.forEach((c, i) => {
+      const s = {};
+      if(c === M.main) s.fontStyle = 'bold';
+      if(M.info[c].numeric){ s.textColor = [138,122,112]; if(isRight(c)) s.halign = 'right'; }
+      colStyles[i + 1] = s;
+    });
+    if(priced){
+      colStyles[PI] = {halign:'right', fontStyle:'bold', textColor:[122,31,31]};
+      colStyles[AI] = {cellWidth:72, halign:'right', fontStyle:'bold', textColor:[29,122,70]};
+    }
+    colStyles[QI] = {cellWidth:34, halign:'center'};
+
+    const foot = new Array(nCols).fill('');
+    foot[mid.indexOf(M.main ?? mid[0]) + 1] = 'Total' + (t.items ? ` (${t.items} ${priced ? 'items' : 'ticked'})` : '');
+    foot[QI] = fmtN(t.qty); if(priced) foot[AI] = pm(t.amt);
+
+    doc.autoTable({
+      startY: 78,
+      margin: {left:24, right:24, top:30, bottom:36},
+      head: [['', ...mid.map(c => H[c]), ...(priced ? [H[P], 'Qty', 'Amount'] : ['Qty'])]],
+      body, foot: [foot],
+      showHead: 'everyPage', showFoot: 'lastPage', theme: 'plain',
+      styles: {font:'helvetica', fontSize:9, cellPadding:5, textColor:[42,29,23], lineColor:[238,227,214], lineWidth:{bottom:0.6}},
+      headStyles: {fillColor:[251,246,239], textColor:[138,122,112], fontStyle:'bold', fontSize:8},
+      footStyles: {fillColor:[122,31,31], textColor:[255,255,255], fontStyle:'bold', fontSize:10.5},
+      columnStyles: colStyles,
+      didParseCell: d => {
+        const ci = d.column.index;
+        if(d.section === 'body' && ticked.has(d.row.index)) d.cell.styles.fillColor = [255,253,246];
+		<!-- 255,248,227 -->
+        if(d.section !== 'body'){
+          const hal = colStyles[ci] && colStyles[ci].halign;
+          if(hal) d.cell.styles.halign = hal;
+        }
+        if(d.section === 'foot' && ci >= QI) d.cell.styles.textColor = [242,182,50];
+      },
+      didDrawCell: d => {   // tick mark for checked rows
+        if(d.section === 'body' && d.column.index === 0 && ticked.has(d.row.index)){
+          const x = d.cell.x + d.cell.width/2, y = d.cell.y + d.cell.height/2;
+          doc.setDrawColor(122,31,31); doc.setLineWidth(1.6);
+          doc.line(x-4, y, x-1, y+3); doc.line(x-1, y+3, x+5, y-4);
+        }
+      },
+      didDrawPage: () => {
+        const Hh = doc.internal.pageSize.getHeight();
+        doc.setFontSize(8); doc.setTextColor(138,122,112);
+        doc.text('Page ' + doc.internal.getNumberOfPages(), W - 24, Hh - 16, {align:'right'});
+      }
+    });
+
+    if(priced){
+      doc.setFontSize(8.5); doc.setTextColor(138,122,112);
+      doc.text('Amount is shown only for ticked items with a quantity.', 24, doc.lastAutoTable.finalY + 14);
+    }
+    deliverFile(doc.output('blob'), fileName(mode, 'pdf'), 'application/pdf', 'PDF');
+  } catch(err){ toast('PDF export failed'); console.error(err); }
+}
+
+/* ============ misc ============ */
+let tt;
+function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2000); }
+
+function syncHeaderOffset(){ document.documentElement.style.setProperty('--tb', $('.toolbar').offsetHeight + 'px'); }
+window.addEventListener('resize', syncHeaderOffset);
+
+rebuild();
+</script>
+</body>
+</html>
